@@ -3,548 +3,363 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#161616">
+<meta name="theme-color" content="#2a2a2a">
 <link rel="manifest" href="manifest.webmanifest">
-<title>MERCATURA v0.3</title>
+<title>MERCATURA v0.1 - Foundation</title>
 <style>
-html,body{margin:0;height:100%;overflow:hidden;background:#111;color:#fff;font-family:system-ui,-apple-system,sans-serif}
-#game{width:100%;height:100%;display:block;touch-action:none;background:#666}
-#hud{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;pointer-events:none;z-index:100}
-.pill{background:#111d;padding:8px 12px;border:1px solid #ffffff33;border-radius:12px;backdrop-filter:blur(8px);pointer-events:auto}
-#msg{position:fixed;top:58px;left:50%;transform:translateX(-50%);background:#111d;padding:8px 12px;border-radius:10px;opacity:0;transition:.2s;z-index:100}
-#controls{position:fixed;inset:0;pointer-events:none}
-#joystick-left{position:fixed;bottom:20px;left:20px;width:120px;height:120px;border-radius:50%;background:#ffffff11;border:1px solid #ffffff33;pointer-events:auto;z-index:50}
-#joystick-left::before{content:'';position:absolute;inset:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:#ffffff44;pointer-events:none}
-#look-zone{position:fixed;right:0;top:0;width:40%;height:100%;pointer-events:auto;touch-action:none;z-index:40}
-.interact-btn{position:fixed;bottom:20px;right:20px;width:80px;height:80px;border-radius:50%;background:#d87922dd;border:1px solid #ffffff44;color:#fff;font-size:24px;cursor:pointer;pointer-events:auto;z-index:50;display:flex;align-items:center;justify-content:center}
-.shop-btn{position:fixed;bottom:110px;right:20px;width:70px;height:70px;border-radius:50%;background:#4d7aaddd;border:1px solid #ffffff44;color:#fff;font-size:18px;cursor:pointer;pointer-events:auto;z-index:50;display:flex;align-items:center;justify-content:center}
-#panel{position:fixed;left:12px;right:12px;bottom:12px;background:#171717f2;border:1px solid #ffffff33;border-radius:16px;padding:14px;display:none;max-height:48%;overflow:auto;z-index:60}
-.row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #ffffff18}
-button.action{background:#d87922;color:white;border:0;border-radius:9px;padding:9px 12px}
-small{opacity:.72}
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #222;
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+#canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+#hud {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 100;
+}
+
+#controls {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+#joystick {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  pointer-events: auto;
+  z-index: 50;
+  touch-action: none;
+}
+
+#joystick::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+#look-zone {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 40%;
+  height: 100%;
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 40;
+}
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
-<div id="hud"><div class="pill"><b>MERCATURA</b><br><small>v0.3 Visual Foundation</small></div></div>
-<div id="msg"></div>
-<div id="controls">
-  <div id="joystick-left"></div>
-  <div id="look-zone"></div>
-  <button class="interact-btn" id="interact">⚙</button>
-  <button class="shop-btn" id="shop">📋</button>
+<canvas id="canvas"></canvas>
+<div id="hud">
+  <div>MERCATURA v0.1 - Foundation</div>
+  <div style="font-size: 10px; opacity: 0.7; margin-top: 4px;">Left: Move | Right: Look</div>
 </div>
-<div id="panel"></div>
+<div id="controls">
+  <div id="joystick"></div>
+  <div id="look-zone"></div>
+</div>
+
+<script src="./three.min.js"></script>
 <script>
 // ============================================================================
-// MERCATURA v0.3 - Visual Foundation Build
-// Focus: Enclosed supermarket interior with proper perspective and recognizable geometry
+// MERCATURA v0.1 - Foundation Build with Three.js
 // ============================================================================
 
 // ============================================================================
-// WORLD DEFINITION
+// SCENE SETUP
 // ============================================================================
-const WORLD = {
-  width: 14,
-  height: 16,
-  tileSize: 1,
-  map: [
-    '##############',
-    '#............#',
-    '#............#',
-    '#.S......S..#',
-    '#.S......S..#',
-    '#............#',
-    '#.F.F.F.F...#',
-    '#............#',
-    '#............#',
-    '#............#',
-    '#..CCC.D....#',
-    '#..CCC......#',
-    '#............#',
-    '#....K.K....#',
-    '#....K.K....#',
-    '##############'
-  ]
-};
 
-// Game state
-let S = JSON.parse(localStorage.getItem('mercaturaSave') || 'null') || {
-  money: 250,
-  stock: 8,
-  shelf: 6,
-  price: 3.2,
-  day: 1,
-  sales: 0
-};
+const canvas = document.getElementById('canvas');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x666688);
 
-let p = {x: 7, y: 1.65, z: 14, a: Math.PI};
-let customers = [];
-let spawn = 0;
-let interactionCooldown = 0;
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  100
+);
+camera.position.set(6, 1.7, 14);
 
-let joystickActive = false;
-let joystickX = 0, joystickY = 0;
-let lookStartX = null;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = false;
 
-const save = () => localStorage.setItem('mercaturaSave', JSON.stringify(S));
-
-function msg(t) {
-  let m = document.getElementById('msg');
-  m.textContent = t;
-  m.style.opacity = 1;
-  setTimeout(() => m.style.opacity = 0, 1600);
-}
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 // ============================================================================
-// COLLISION SYSTEM
+// LIGHTING
 // ============================================================================
-function getTileType(x, z) {
-  const tx = Math.floor(x);
-  const tz = Math.floor(z);
-  if (tz < 0 || tz >= WORLD.height || tx < 0 || tx >= WORLD.width) return '#';
-  return WORLD.map[tz][tx];
-}
 
-function canWalkAt(x, z, radius = 0.3) {
-  const t = getTileType(x, z);
-  if (t === '#') return false;
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+directionalLight.position.set(6, 3, 6);
+scene.add(directionalLight);
+
+// ============================================================================
+// MATERIALS
+// ============================================================================
+
+const wallMaterial = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+const floorMaterial = new THREE.MeshPhongMaterial({ color: 0x8b6f47 });
+const ceilingMaterial = new THREE.MeshPhongMaterial({ color: 0x999999 });
+const checkoutMaterial = new THREE.MeshPhongMaterial({ color: 0xcc8844 });
+const shelfMaterial = new THREE.MeshPhongMaterial({ color: 0xa87a52 });
+const deskMaterial = new THREE.MeshPhongMaterial({ color: 0x555555 });
+const monitorMaterial = new THREE.MeshPhongMaterial({ color: 0x1a1a1a });
+
+// ============================================================================
+// WORLD GEOMETRY - Room Dimensions: 12m x 16m x 3.2m high
+// ============================================================================
+
+// Floor
+const floorGeometry = new THREE.PlaneGeometry(12, 16);
+const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = 0;
+scene.add(floor);
+
+// Ceiling
+const ceilingGeometry = new THREE.PlaneGeometry(12, 16);
+const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+ceiling.rotation.x = Math.PI / 2;
+ceiling.position.y = 3.2;
+scene.add(ceiling);
+
+// Left Wall (x = 0)
+const leftWallGeometry = new THREE.BoxGeometry(0.2, 3.2, 16);
+const leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
+leftWall.position.set(-0.1, 1.6, 8);
+scene.add(leftWall);
+
+// Right Wall (x = 12)
+const rightWallGeometry = new THREE.BoxGeometry(0.2, 3.2, 16);
+const rightWall = new THREE.Mesh(rightWallGeometry, wallMaterial);
+rightWall.position.set(12.1, 1.6, 8);
+scene.add(rightWall);
+
+// Back Wall (z = 16)
+const backWallGeometry = new THREE.BoxGeometry(12, 3.2, 0.2);
+const backWall = new THREE.Mesh(backWallGeometry, wallMaterial);
+backWall.position.set(6, 1.6, 16.1);
+scene.add(backWall);
+
+// Front Wall - Left Section (z = 0, x = 0 to 5)
+const frontWallLeftGeometry = new THREE.BoxGeometry(5, 3.2, 0.2);
+const frontWallLeft = new THREE.Mesh(frontWallLeftGeometry, wallMaterial);
+frontWallLeft.position.set(2.5, 1.6, -0.1);
+scene.add(frontWallLeft);
+
+// Front Wall - Right Section (z = 0, x = 7 to 12)
+const frontWallRightGeometry = new THREE.BoxGeometry(5, 3.2, 0.2);
+const frontWallRight = new THREE.Mesh(frontWallRightGeometry, wallMaterial);
+frontWallRight.position.set(9.5, 1.6, -0.1);
+scene.add(frontWallRight);
+
+// Front Wall - Door Lintel (top of entrance, x = 5 to 7, z = 2.1 to 3.2)
+const lintelGeometry = new THREE.BoxGeometry(2, 1.1, 0.2);
+const lintel = new THREE.Mesh(lintelGeometry, wallMaterial);
+lintel.position.set(6, 2.65, -0.1);
+scene.add(lintel);
+
+// ============================================================================
+// FIXTURES
+// ============================================================================
+
+// Checkout Counter (base + front face + top counter surface)
+// Position: x ~2.5, z ~2 (left-center area, easy to reach from entrance)
+
+// Counter base (box)
+const counterBaseGeometry = new THREE.BoxGeometry(1.5, 0.8, 0.8);
+const counterBase = new THREE.Mesh(counterBaseGeometry, checkoutMaterial);
+counterBase.position.set(2.5, 0.4, 2);
+scene.add(counterBase);
+
+// Counter front panel (raised)
+const counterFrontGeometry = new THREE.BoxGeometry(1.5, 0.4, 0.1);
+const counterFront = new THREE.Mesh(counterFrontGeometry, checkoutMaterial);
+counterFront.position.set(2.5, 0.95, 1.85);
+scene.add(counterFront);
+
+// Counter top surface (conveyor-like)
+const counterTopGeometry = new THREE.BoxGeometry(1.6, 0.08, 0.9);
+const counterTop = new THREE.Mesh(counterTopGeometry, new THREE.MeshPhongMaterial({ color: 0xddaa55 }));
+counterTop.position.set(2.5, 1.1, 2);
+scene.add(counterTop);
+
+// ============================================================================
+// SUPERMARKET SHELF
+// Position: x ~9, z ~8 (right-center area)
+
+// Shelf left post
+const postLeftGeometry = new THREE.BoxGeometry(0.15, 1.8, 0.15);
+const postLeft = new THREE.Mesh(postLeftGeometry, shelfMaterial);
+postLeft.position.set(8.6, 0.9, 8);
+scene.add(postLeft);
+
+// Shelf right post
+const postRight = new THREE.Mesh(postLeftGeometry, shelfMaterial);
+postRight.position.set(9.4, 0.9, 8);
+scene.add(postRight);
+
+// Shelf boards (3 levels)
+const boardGeometry = new THREE.BoxGeometry(0.9, 0.08, 0.6);
+const shelfLevel1 = new THREE.Mesh(boardGeometry, shelfMaterial);
+shelfLevel1.position.set(9, 0.5, 8);
+scene.add(shelfLevel1);
+
+const shelfLevel2 = new THREE.Mesh(boardGeometry, shelfMaterial);
+shelfLevel2.position.set(9, 1.0, 8);
+scene.add(shelfLevel2);
+
+const shelfLevel3 = new THREE.Mesh(boardGeometry, shelfMaterial);
+shelfLevel3.position.set(9, 1.5, 8);
+scene.add(shelfLevel3);
+
+// ============================================================================
+// ORDERING TERMINAL (Desk + Monitor/Tablet)
+// Position: x ~6, z ~3 (center area, near entrance)
+
+// Desk surface
+const deskGeometry = new THREE.BoxGeometry(0.8, 0.75, 0.6);
+const desk = new THREE.Mesh(deskGeometry, deskMaterial);
+desk.position.set(6, 0.375, 3);
+scene.add(desk);
+
+// Monitor/tablet on desk
+const monitorGeometry = new THREE.BoxGeometry(0.5, 0.4, 0.05);
+const monitor = new THREE.Mesh(monitorGeometry, monitorMaterial);
+monitor.position.set(6, 1.05, 2.95);
+scene.add(monitor);
+
+// ============================================================================
+// COLLISION SYSTEM - AABB with Player Radius
+// ============================================================================
+
+// Fixture collision bounds: {x, y, z, w, h, d, name}
+const fixtures = [
+  // Walls
+  { x: 0, y: 1.6, z: 8, w: 0.2, h: 3.2, d: 16, name: 'left-wall' },
+  { x: 12, y: 1.6, z: 8, w: 0.2, h: 3.2, d: 16, name: 'right-wall' },
+  { x: 6, y: 1.6, z: 16, w: 12, h: 3.2, d: 0.2, name: 'back-wall' },
+  { x: 2.5, y: 1.6, z: 0, w: 5, h: 3.2, d: 0.2, name: 'front-wall-left' },
+  { x: 9.5, y: 1.6, z: 0, w: 5, h: 3.2, d: 0.2, name: 'front-wall-right' },
+  { x: 6, y: 2.65, z: 0, w: 2, h: 1.1, d: 0.2, name: 'lintel' },
   
-  // Collision with fixture areas (shelves, counter, fridge, stockroom)
-  const fixtures = [
-    {x: 1.5, z: 3.5, w: 0.8, h: 1.8}, // Left shelf 1
-    {x: 1.5, z: 4.5, w: 0.8, h: 1.8}, // Left shelf 2
-    {x: 11, z: 3.5, w: 0.8, h: 1.8},  // Right shelf 1
-    {x: 11, z: 4.5, w: 0.8, h: 1.8},  // Right shelf 2
-    {x: 2, z: 6.5, w: 2.5, h: 0.8},   // Fridge counter
-    {x: 2.5, z: 10.5, w: 1.5, h: 1.2}, // Checkout counter
-    {x: 7, z: 10.5, w: 1, h: 0.8},    // Entrance door
-    {x: 7, z: 14.5, w: 1.5, h: 1.5}   // Stockroom door area
-  ];
+  // Checkout counter
+  { x: 2.5, y: 0.55, z: 2, w: 1.5, h: 1.1, d: 0.9, name: 'checkout' },
   
-  for (let f of fixtures) {
-    const dx = Math.abs(x - f.x);
-    const dz = Math.abs(z - f.z);
-    if (dx < f.w / 2 + radius && dz < f.h / 2 + radius) return false;
+  // Shelf
+  { x: 9, y: 0.9, z: 8, w: 0.9, h: 1.8, d: 0.6, name: 'shelf' },
+  
+  // Desk
+  { x: 6, y: 0.375, z: 3, w: 0.8, h: 0.75, d: 0.6, name: 'desk' },
+];
+
+const PLAYER_RADIUS = 0.3;
+
+function canMoveTo(x, y, z) {
+  // Check collision against all fixtures
+  for (let fixture of fixtures) {
+    const dx = Math.abs(x - fixture.x);
+    const dz = Math.abs(z - fixture.z);
+    
+    // AABB collision in XZ plane (ignore Y for walking)
+    if (dx < fixture.w / 2 + PLAYER_RADIUS && dz < fixture.d / 2 + PLAYER_RADIUS) {
+      return false;
+    }
   }
+  
   return true;
 }
 
 // ============================================================================
-// CANVAS SETUP
-// ============================================================================
-const c = document.getElementById('game'), x = c.getContext('2d');
-let W, H, focalLength;
-
-function resize() {
-  W = c.width = innerWidth * devicePixelRatio;
-  H = c.height = innerHeight * devicePixelRatio;
-  x.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-  // Focal length for proper perspective (60° FOV)
-  focalLength = innerWidth / (2 * Math.tan(Math.PI / 6));
-}
-addEventListener('resize', resize);
-resize();
-
-// ============================================================================
-// PROJECTION & RENDERING
+// PLAYER CONTROLLER
 // ============================================================================
 
-// Project world coords to screen coords with proper perspective
-function project(wx, wz, wy) {
-  const dx = wx - p.x;
-  const dz = wz - p.z;
-  const dy = wy - p.y;
-  
-  // Rotate by player angle
-  const ca = Math.cos(-p.a);
-  const sa = Math.sin(-p.a);
-  const rx = dx * ca - dz * sa;
-  const rz = dx * sa + dz * ca;
-  
-  // Behind player
-  if (rz < 0.1) return null;
-  
-  // Project to screen
-  const sx = innerWidth / 2 + (rx / rz) * focalLength;
-  const sy = innerHeight * 0.35 + (dy / rz) * focalLength;
-  
-  return {x: sx, y: sy, z: rz};
-}
+let player = {
+  x: 6,
+  y: 1.7,
+  z: 14,
+  angle: 0,
+  vx: 0,
+  vz: 0,
+};
 
-// Draw a wall segment (vertical rectangle in 3D)
-function drawWallSegment(wx1, wz1, wx2, wz2, wyTop, wyBot, col) {
-  const p1 = project(wx1, wz1, wyBot);
-  const p2 = project(wx2, wz2, wyBot);
-  const p3 = project(wx2, wz2, wyTop);
-  const p4 = project(wx1, wz1, wyTop);
-  
-  if (!p1 || !p2 || !p3 || !p4) return;
-  
-  x.fillStyle = col;
-  x.beginPath();
-  x.moveTo(p1.x, p1.y);
-  x.lineTo(p2.x, p2.y);
-  x.lineTo(p3.x, p3.y);
-  x.lineTo(p4.x, p4.y);
-  x.fill();
-  
-  x.strokeStyle = '#00000044';
-  x.lineWidth = 1;
-  x.stroke();
-}
-
-// Draw ceiling (simple quadrilateral)
-function drawCeiling() {
-  const corners = [
-    project(0, 0, 2.4),
-    project(14, 0, 2.4),
-    project(14, 16, 2.4),
-    project(0, 16, 2.4)
-  ];
-  
-  if (corners.some(c => !c)) return;
-  
-  x.fillStyle = '#999999';
-  x.beginPath();
-  x.moveTo(corners[0].x, corners[0].y);
-  x.lineTo(corners[1].x, corners[1].y);
-  x.lineTo(corners[2].x, corners[2].y);
-  x.lineTo(corners[3].x, corners[3].y);
-  x.fill();
-  
-  x.strokeStyle = '#00000055';
-  x.lineWidth = 1;
-  x.stroke();
-}
-
-// Draw floor
-function drawFloor() {
-  const corners = [
-    project(0, 0, 0),
-    project(14, 0, 0),
-    project(14, 16, 0),
-    project(0, 16, 0)
-  ];
-  
-  if (corners.some(c => !c)) return;
-  
-  x.fillStyle = '#774422';
-  x.beginPath();
-  x.moveTo(corners[0].x, corners[0].y);
-  x.lineTo(corners[1].x, corners[1].y);
-  x.lineTo(corners[2].x, corners[2].y);
-  x.lineTo(corners[3].x, corners[3].y);
-  x.fill();
-  
-  // Floor grid
-  x.strokeStyle = '#00000022';
-  x.lineWidth = 0.5;
-  for (let gz = 0; gz <= 16; gz += 1) {
-    const p1 = project(0, gz, 0);
-    const p2 = project(14, gz, 0);
-    if (p1 && p2) {
-      x.beginPath();
-      x.moveTo(p1.x, p1.y);
-      x.lineTo(p2.x, p2.y);
-      x.stroke();
-    }
-  }
-  for (let gx = 0; gx <= 14; gx += 1) {
-    const p1 = project(gx, 0, 0);
-    const p2 = project(gx, 16, 0);
-    if (p1 && p2) {
-      x.beginPath();
-      x.moveTo(p1.x, p1.y);
-      x.lineTo(p2.x, p2.y);
-      x.stroke();
-    }
-  }
-}
-
-// Draw walls (room enclosure)
-function drawWalls() {
-  // Left wall
-  drawWallSegment(0, 0, 0, 16, 2.4, 0, '#aaaaaa');
-  
-  // Right wall
-  drawWallSegment(14, 0, 14, 16, 2.4, 0, '#999999');
-  
-  // Back wall
-  drawWallSegment(0, 16, 14, 16, 2.4, 0, '#aaaaaa');
-  
-  // Front wall (left section)
-  drawWallSegment(0, 0, 6, 0, 2.4, 0, '#bbbbbb');
-  
-  // Front wall (right section, past entrance)
-  drawWallSegment(8, 0, 14, 0, 2.4, 0, '#bbbbbb');
-  
-  // Entrance (door opening at z=0, x=6-8)
-  // Draw door frame
-  drawWallSegment(6, 0, 8, 0, 2.2, 1.8, '#555555');
-}
-
-// Draw a shelf unit (vertical walls + horizontal shelves)
-function drawShelf(centerX, centerZ, width, depth, height, color) {
-  const x1 = centerX - width / 2;
-  const x2 = centerX + width / 2;
-  const z1 = centerZ - depth / 2;
-  const z2 = centerZ + depth / 2;
-  
-  // Back panel
-  drawWallSegment(x1, z2, x2, z2, height, 0, color);
-  
-  // Left side
-  drawWallSegment(x1, z1, x1, z2, height, 0, color);
-  
-  // Right side
-  drawWallSegment(x2, z1, x2, z2, height, 0, color);
-  
-  // Horizontal shelf levels
-  const shelfLevels = [0.4, 0.95, 1.5];
-  x.strokeStyle = '#00000033';
-  x.lineWidth = 1;
-  
-  for (let sh of shelfLevels) {
-    const p1 = project(x1, z1, sh);
-    const p2 = project(x2, z1, sh);
-    const p3 = project(x2, z2, sh);
-    const p4 = project(x1, z2, sh);
-    
-    if (p1 && p2 && p3 && p4) {
-      x.beginPath();
-      x.moveTo(p1.x, p1.y);
-      x.lineTo(p2.x, p2.y);
-      x.lineTo(p3.x, p3.y);
-      x.lineTo(p4.x, p4.y);
-      x.stroke();
-    }
-  }
-}
-
-// Draw checkout counter (rectangular box with conveyor top)
-function drawCheckout() {
-  const x1 = 1.5;
-  const x2 = 3.5;
-  const z1 = 10;
-  const z2 = 11;
-  const hBody = 0.9;
-  const hTop = 1.1;
-  
-  // Front face (taller)
-  drawWallSegment(x1, z1, x2, z1, hTop, 0, '#cc8844');
-  
-  // Back face
-  drawWallSegment(x1, z2, x2, z2, hBody, 0, '#aa6633');
-  
-  // Left side
-  drawWallSegment(x1, z1, x1, z2, hTop, 0, '#bb7733');
-  
-  // Right side
-  drawWallSegment(x2, z1, x2, z2, hTop, 0, '#bb7733');
-  
-  // Top conveyor surface
-  const p1 = project(x1, z1, hTop);
-  const p2 = project(x2, z1, hTop);
-  const p3 = project(x2, z2, hBody);
-  const p4 = project(x1, z2, hBody);
-  
-  if (p1 && p2 && p3 && p4) {
-    x.fillStyle = '#ddaa55';
-    x.beginPath();
-    x.moveTo(p1.x, p1.y);
-    x.lineTo(p2.x, p2.y);
-    x.lineTo(p3.x, p3.y);
-    x.lineTo(p4.x, p4.y);
-    x.fill();
-    
-    x.strokeStyle = '#00000044';
-    x.lineWidth = 1;
-    x.stroke();
-  }
-}
-
-// Draw refrigerated display
-function drawFridge() {
-  const x1 = 0.5;
-  const x2 = 3.5;
-  const z1 = 6.2;
-  const z2 = 6.8;
-  const height = 0.95;
-  
-  // Front glass-like face
-  drawWallSegment(x1, z1, x2, z1, height, 0, '#88aacc');
-  
-  // Back
-  drawWallSegment(x1, z2, x2, z2, height, 0, '#6688aa');
-  
-  // Left side
-  drawWallSegment(x1, z1, x1, z2, height, 0, '#7799bb');
-  
-  // Right side
-  drawWallSegment(x2, z1, x2, z2, height, 0, '#7799bb');
-  
-  // Front compartment divisions (glass sections)
-  x.strokeStyle = '#00000044';
-  x.lineWidth = 1.5;
-  
-  const dividers = [x1 + (x2 - x1) / 3, x1 + 2 * (x2 - x1) / 3];
-  for (let dvx of dividers) {
-    const p1 = project(dvx, z1, height);
-    const p2 = project(dvx, z1, 0);
-    if (p1 && p2) {
-      x.beginPath();
-      x.moveTo(p1.x, p1.y);
-      x.lineTo(p2.x, p2.y);
-      x.stroke();
-    }
-  }
-}
-
-// Draw stockroom door/opening
-function drawStockroom() {
-  const x1 = 6.25;
-  const x2 = 7.75;
-  const z = 15;
-  const frameHeight = 2.1;
-  const openHeight = 1.9;
-  
-  // Door frame sides
-  drawWallSegment(x1, z, x1, z, frameHeight, 0, '#666666');
-  drawWallSegment(x2, z, x2, z, frameHeight, 0, '#666666');
-  
-  // Door lintel (top)
-  drawWallSegment(x1, z, x2, z, frameHeight, openHeight, '#666666');
-  
-  // Recessed stockroom (dark interior visible through opening)
-  const p1 = project(x1, z, 0);
-  const p2 = project(x2, z, 0);
-  const p3 = project(x2, z, openHeight);
-  const p4 = project(x1, z, openHeight);
-  
-  if (p1 && p2 && p3 && p4) {
-    x.fillStyle = '#333333';
-    x.beginPath();
-    x.moveTo(p1.x, p1.y);
-    x.lineTo(p2.x, p2.y);
-    x.lineTo(p3.x, p3.y);
-    x.lineTo(p4.x, p4.y);
-    x.fill();
-  }
-}
-
-// Main draw function
-function draw() {
-  x.fillStyle = '#666666';
-  x.fillRect(0, 0, innerWidth, innerHeight);
-  
-  drawFloor();
-  drawCeiling();
-  drawWalls();
-  
-  // Shelves
-  drawShelf(1.5, 3.5, 0.8, 0.6, 1.8, '#a87a52');
-  drawShelf(1.5, 4.5, 0.8, 0.6, 1.8, '#a87a52');
-  drawShelf(11.5, 3.5, 0.8, 0.6, 1.8, '#a87a52');
-  drawShelf(11.5, 4.5, 0.8, 0.6, 1.8, '#a87a52');
-  
-  // Fridge
-  drawFridge();
-  
-  // Checkout
-  drawCheckout();
-  
-  // Stockroom
-  drawStockroom();
-  
-  // Draw customers (simple colored shapes for now)
-  customers.forEach(o => {
-    const q = project(o.x, o.z, 0);
-    const qt = project(o.x, o.z, 1.65);
-    if (q && qt) {
-      x.fillStyle = o.col;
-      x.fillRect(q.x - 15, qt.y, 30, q.y - qt.y);
-    }
-  });
-  
-  // Crosshair
-  x.fillStyle = '#ffffff99';
-  x.fillRect(innerWidth / 2 - 1, innerHeight / 2 - 8, 2, 16);
-  x.fillRect(innerWidth / 2 - 8, innerHeight / 2 - 1, 16, 2);
-  
-  // Joystick visual feedback
-  if (joystickActive) {
-    const jx = joystickX * 40;
-    const jy = joystickY * 40;
-    x.fillStyle = '#ffffff44';
-    x.beginPath();
-    x.arc(60 + jx, innerHeight - 60 + jy, 15, 0, Math.PI * 2);
-    x.fill();
-  }
-}
-
-// ============================================================================
-// MOVEMENT & INTERACTION
-// ============================================================================
-function near(ax, az, d = 1.8) {
-  return Math.hypot(p.x - ax, p.z - az) < d;
-}
-
-function interact() {
-  if (interactionCooldown > 0) return;
-  interactionCooldown = 0.3;
-  msg('(v0.3: Gameplay systems dormant)');
-}
-
-document.getElementById('interact').addEventListener('click', interact);
-
-// ============================================================================
-// MANAGEMENT PANEL (DORMANT)
-// ============================================================================
-function renderPanel() {
-  const panel = document.getElementById('panel');
-  panel.innerHTML = `<b>MERCATURA v0.3</b>
-<small>Visual Foundation Build<br>
-This release focuses on interior geometry and perspective.<br><br>
-✓ Enclosed room with four walls and ceiling<br>
-✓ Proper first-person camera (60° FOV)<br>
-✓ Recognizable fixtures: shelves, checkout, refrigerator, stockroom<br>
-✓ Collision system active<br>
-✓ Mobile controls: left joystick, right swipe-to-look<br><br>
-Gameplay systems (inventory, economy, customers) are dormant in this foundation build.
-</small>`;
-}
-
-document.getElementById('shop').addEventListener('click', () => {
-  const panel = document.getElementById('panel');
-  panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
-  if (panel.style.display === 'block') renderPanel();
-});
+const MOVE_SPEED = 5; // m/s
+const LOOK_SPEED = 0.005;
 
 // ============================================================================
 // MOBILE CONTROLS
 // ============================================================================
-const joystickArea = document.getElementById('joystick-left');
+
+let joystickActive = false;
+let joystickX = 0;
+let joystickY = 0;
+
+const joystickElement = document.getElementById('joystick');
 const lookZone = document.getElementById('look-zone');
 
-joystickArea.addEventListener('pointerdown', e => {
+joystickElement.addEventListener('pointerdown', e => {
   e.preventDefault();
   joystickActive = true;
-  joystickArea.setPointerCapture?.(e.pointerId);
+  joystickElement.setPointerCapture?.(e.pointerId);
   updateJoystick(e);
 });
 
-joystickArea.addEventListener('pointermove', e => {
-  if (joystickActive) updateJoystick(e);
+joystickElement.addEventListener('pointermove', e => {
+  if (joystickActive) {
+    updateJoystick(e);
+  }
 });
 
-joystickArea.addEventListener('pointerup', e => {
+joystickElement.addEventListener('pointerup', e => {
   joystickActive = false;
-  joystickX = joystickY = 0;
+  joystickX = 0;
+  joystickY = 0;
 });
 
 function updateJoystick(e) {
-  const rect = joystickArea.getBoundingClientRect();
+  const rect = joystickElement.getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
   const cy = rect.top + rect.height / 2;
   const dx = e.clientX - cx;
@@ -553,13 +368,16 @@ function updateJoystick(e) {
   const maxDist = 50;
   
   if (dist > maxDist) {
-    joystickX = (dx / dist) * maxDist / maxDist;
-    joystickY = (dy / dist) * maxDist / maxDist;
+    joystickX = (dx / dist);
+    joystickY = (dy / dist);
   } else {
     joystickX = dx / maxDist;
     joystickY = dy / maxDist;
   }
 }
+
+// Look (right side swipe)
+let lookStartX = null;
 
 lookZone.addEventListener('pointerdown', e => {
   e.preventDefault();
@@ -569,8 +387,8 @@ lookZone.addEventListener('pointerdown', e => {
 
 lookZone.addEventListener('pointermove', e => {
   if (lookStartX !== null) {
-    const deltaX = (e.clientX - lookStartX) * 0.005;
-    p.a += deltaX;
+    const deltaX = (e.clientX - lookStartX) * LOOK_SPEED;
+    player.angle += deltaX;
     lookStartX = e.clientX;
   }
 });
@@ -580,66 +398,52 @@ lookZone.addEventListener('pointerup', e => {
 });
 
 // ============================================================================
-// CUSTOMER AI (DORMANT)
+// ANIMATION LOOP
 // ============================================================================
-function updateCustomers(dt) {
-  spawn -= dt;
-  if (spawn < 0) {
-    spawn = 3 + Math.random() * 4;
-    if (customers.length < 2) {
-      customers.push({
-        x: 7 + (Math.random() * 0.5 - 0.25),
-        z: 1,
-        col: ['#c75', '#57a', '#7a8', '#8a7'][Math.floor(Math.random() * 4)],
-        life: 0
-      });
+
+function animate() {
+  requestAnimationFrame(animate);
+  
+  const dt = 1 / 60; // Assume 60 FPS
+  
+  // Handle joystick input
+  if (joystickActive && Math.hypot(joystickX, joystickY) > 0.1) {
+    const moveAngle = Math.atan2(joystickX, -joystickY);
+    const worldAngle = player.angle + moveAngle;
+    const moveDir = Math.hypot(joystickX, joystickY);
+    
+    const nextX = player.x + Math.sin(worldAngle) * MOVE_SPEED * moveDir * dt;
+    const nextZ = player.z + Math.cos(worldAngle) * MOVE_SPEED * moveDir * dt;
+    
+    // Collision check with axis separation
+    if (canMoveTo(nextX, player.y, player.z)) {
+      player.x = nextX;
+    }
+    if (canMoveTo(player.x, player.y, nextZ)) {
+      player.z = nextZ;
     }
   }
   
-  customers.forEach((o, idx) => {
-    o.life += dt;
-    o.z += dt * 0.5;
-    if (o.z > 15) {
-      customers.splice(idx, 1);
-    }
-  });
+  // Update camera from player
+  camera.position.set(player.x, player.y, player.z);
+  camera.rotation.order = 'YXZ';
+  camera.rotation.y = player.angle;
+  camera.rotation.x = 0;
+  
+  // Render
+  renderer.render(scene, camera);
 }
 
-// ============================================================================
-// MAIN LOOP
-// ============================================================================
-function tick(t) {
-  const dt = 0.016;
-  const sp = 2.2 * dt;
-  
-  interactionCooldown -= dt;
-  
-  // Apply joystick input
-  if (joystickActive) {
-    const moveDir = Math.hypot(joystickX, joystickY);
-    if (moveDir > 0.1) {
-      const moveAngle = Math.atan2(joystickX, -joystickY);
-      const worldAngle = p.a + moveAngle;
-      const dx = Math.sin(worldAngle) * sp * moveDir;
-      const dz = Math.cos(worldAngle) * sp * moveDir;
-      
-      if (canWalkAt(p.x + dx, p.z, 0.3)) p.x += dx;
-      if (canWalkAt(p.x, p.z + dz, 0.3)) p.z += dz;
-    }
-  }
-  
-  updateCustomers(dt);
-  draw();
-  
-  requestAnimationFrame(tick);
-}
-requestAnimationFrame(tick);
+animate();
 
 // ============================================================================
 // PWA
 // ============================================================================
+
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js');
+  navigator.serviceWorker.register('./sw.js').catch(() => {
+    // Service worker registration failed, app still works offline after first load
+  });
 }
 </script>
 </body>
