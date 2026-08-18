@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#161616">
+<link rel="manifest" href="manifest.webmanifest">
+<title>MERCATURA v0.1</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#111;color:#fff;font-family:system-ui,-apple-system,sans-serif}
+#game{width:100%;height:100%;display:block;touch-action:none}
+#hud{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;pointer-events:none}
+.pill{background:#111d;padding:8px 12px;border:1px solid #ffffff33;border-radius:12px;backdrop-filter:blur(8px)}
+#msg{position:fixed;top:58px;left:50%;transform:translateX(-50%);background:#111d;padding:8px 12px;border-radius:10px;opacity:0;transition:.2s}
+#controls{position:fixed;inset:0;pointer-events:none}
+.pad{position:absolute;bottom:22px;width:150px;height:150px;pointer-events:auto}
+#move{left:18px} #look{right:18px}
+.btn{position:absolute;width:54px;height:54px;border-radius:50%;border:1px solid #ffffff44;background:#ffffff18;color:#fff;font-size:20px}
+#up{left:48px;top:0}#down{left:48px;bottom:0}#left{left:0;top:48px}#right{right:0;top:48px}
+#interact{right:55px;bottom:185px;width:82px;height:82px;font-size:13px;background:#d87922cc}
+#shop{left:50%;transform:translateX(-50%);bottom:20px;width:auto;border-radius:14px;padding:0 18px;font-size:13px}
+#panel{position:fixed;left:12px;right:12px;bottom:12px;background:#171717f2;border:1px solid #ffffff33;border-radius:16px;padding:14px;display:none;max-height:48%;overflow:auto}
+.row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #ffffff18}
+button.action{background:#d87922;color:white;border:0;border-radius:9px;padding:9px 12px}
+small{opacity:.72}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud"><div class="pill"><b>MERCATURA</b><br><small>Tag <span id="day">1</span></small></div><div class="pill"><span id="money">250.00</span> €<br><small>Lager: <span id="stock">8</span> | Regal: <span id="shelf">6</span></small></div></div>
+<div id="msg"></div>
+<div id="controls">
+ <div id="lookzone" style="position:absolute;right:0;top:90px;width:48%;height:55%;pointer-events:auto;touch-action:none"></div>
+ <div class="pad" id="move">
+  <button class="btn" id="up">▲</button><button class="btn" id="down">▼</button><button class="btn" id="left">◀</button><button class="btn" id="right">▶</button>
+ </div>
+ <button class="btn" id="interact">AKTION</button>
+ <button class="btn" id="shop">MANAGEMENT</button>
+</div>
+<div id="panel"></div>
+<script>
+const c=document.getElementById('game'),x=c.getContext('2d');
+let W,H; function resize(){W=c.width=innerWidth*devicePixelRatio;H=c.height=innerHeight*devicePixelRatio;x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)} addEventListener('resize',resize);resize();
+let S=JSON.parse(localStorage.getItem('mercaturaSave')||'null')||{money:250,stock:8,shelf:6,price:3.2,day:1,sales:0,exp:0};
+let p={x:0,y:1.65,z:5,a:Math.PI}, keys={}, customers=[], spawn=0;
+const save=()=>localStorage.setItem('mercaturaSave',JSON.stringify(S));
+function msg(t){let m=document.getElementById('msg');m.textContent=t;m.style.opacity=1;setTimeout(()=>m.style.opacity=0,1600)}
+function hud(){money.textContent=S.money.toFixed(2);stock.textContent=S.stock;shelf.textContent=S.shelf;day.textContent=S.day}hud();
+[['up','f'],['down','b'],['left','l'],['right','r']].forEach(([id,k])=>{let e=document.getElementById(id);['pointerdown'].forEach(q=>e.addEventListener(q,ev=>{ev.preventDefault();keys[k]=1}));['pointerup','pointercancel','pointerleave'].forEach(q=>e.addEventListener(q,()=>keys[k]=0))});
+const lookzone=document.getElementById('lookzone');let lx=null;lookzone.addEventListener('pointerdown',e=>{e.preventDefault();lx=e.clientX;lookzone.setPointerCapture?.(e.pointerId)});lookzone.addEventListener('pointermove',e=>{if(lx!==null){e.preventDefault();p.a+=(e.clientX-lx)*.009;lx=e.clientX}});['pointerup','pointercancel','pointerleave'].forEach(q=>lookzone.addEventListener(q,()=>lx=null));
+function near(ax,az,d=1.8){return Math.hypot(p.x-ax,p.z-az)<d}
+interact.onclick=()=>{
+ if(near(-3,-2)&&S.stock>0){let n=Math.min(6-S.shelf,S.stock);if(n>0){S.stock-=n;S.shelf+=n;msg(n+' Produkte eingeräumt');save();hud()}else msg('Regal ist voll')}
+ else if(near(3,-2)){if(S.sales>0){msg('Kasse: '+S.sales+' Verkäufe heute')}else msg('Noch keine Verkäufe')}
+ else if(near(0,7)){S.day++;msg('Neuer Verkaufstag');save();hud()}
+ else msg('Hier gibt es gerade nichts zu tun');
+};
+shop.onclick=()=>{panel.style.display=panel.style.display==='block'?'none':'block';renderPanel()};
+function renderPanel(){panel.innerHTML=`<b>Marktverwaltung</b>
+<div class=row><span>Ware bestellen<br><small>10 Stück · 15,00 €</small></span><button class=action onclick="order()">Bestellen</button></div>
+<div class=row><span>Verkaufspreis<br><small>Aktuell ${S.price.toFixed(2)} €</small></span><span><button class=action onclick="price(-.2)">−</button> <button class=action onclick="price(.2)">+</button></span></div>
+<div class=row><span>Ladenerweiterung<br><small>${S.exp?'Gekauft':'Mehr Verkaufsfläche · 180 €'}</small></span><button class=action onclick="expand()" ${S.exp?'disabled':''}>Kaufen</button></div>
+<small>v0.1 Vertical Slice: Bewegen, Ware bestellen, Regal auffüllen, Preise setzen, Kundenverkauf und räumliche Erweiterung.</small>`}
+window.order=()=>{if(S.money>=15){S.money-=15;S.stock+=10;save();hud();renderPanel();msg('Lieferung angekommen')}else msg('Zu wenig Geld')};
+window.price=d=>{S.price=Math.max(.5,Math.min(8,S.price+d));save();renderPanel()};
+window.expand=()=>{if(!S.exp&&S.money>=180){S.money-=180;S.exp=1;save();hud();renderPanel();msg('Verkaufsfläche erweitert!')}else msg('Zu wenig Geld')};
+function project(wx,wz){let dx=wx-p.x,dz=wz-p.z,ca=Math.cos(-p.a),sa=Math.sin(-p.a),rx=dx*ca-dz*sa,rz=dx*sa+dz*ca;if(rz<.2)return null;let f=Math.min(innerWidth,innerHeight)*.9;return [innerWidth/2+rx/rz*f,innerHeight*.52+1.65/rz*f,rz]}
+function rect3(wx,wz,ww,hh,col,label){let q=project(wx,wz);if(!q)return;let [sx,sy,z]=q,sc=Math.min(260,180/z);x.fillStyle=col;x.fillRect(sx-ww*sc/2,sy-hh*sc,ww*sc,hh*sc);x.strokeStyle='#0008';x.strokeRect(sx-ww*sc/2,sy-hh*sc,ww*sc,hh*sc);if(label&&z<10){x.fillStyle='white';x.font=Math.max(10,14/z*3)+'px system-ui';x.textAlign='center';x.fillText(label,sx,sy-hh*sc-5)}}
+function draw(){
+ x.clearRect(0,0,innerWidth,innerHeight);
+ let g=x.createLinearGradient(0,0,0,innerHeight);g.addColorStop(0,'#8aa0ad');g.addColorStop(.52,'#d7d2c7');g.addColorStop(.53,'#77736b');g.addColorStop(1,'#494742');x.fillStyle=g;x.fillRect(0,0,innerWidth,innerHeight);
+ // simple perspective floor grid / shop shell
+ x.strokeStyle='#ffffff18'; x.lineWidth=1;
+ for(let gx=-6;gx<=6;gx+=2){let a=project(gx,-10),b=project(gx,9);if(a&&b){x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke()}}
+ for(let gz=-8;gz<=8;gz+=2){let a=project(-7,gz),b=project(7,gz);if(a&&b){x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke()}}
+ rect3(-6,-1,.25,3,'#4b4b4b',''); rect3(6,-1,.25,3,'#4b4b4b','');
+ // walls / shop fixtures
+ rect3(-3,-2,1.3,1.7,'#b88345','REGAL · Aktion');
+ rect3(3,-2,1.6,1.1,'#3d4a50','KASSE');
+ rect3(-5,-6,2.1,2,'#71848a','KÜHLUNG');
+ rect3(0,-8,3.5,2.3,'#9c704d','WARENREGAL');
+ if(S.exp){rect3(5,-7,3,2,'#a17856','NEUE VERKAUFSFLÄCHE');rect3(5,-3,2,1.8,'#6f8a73','REGAL 2')}
+ rect3(0,7,2.4,2,'#55483e','EINGANG / TAG');
+ customers.forEach(o=>rect3(o.x,o.z,.45,1.65,o.col,''));
+ x.fillStyle='#ffffff99';x.fillRect(innerWidth/2-1,innerHeight/2-8,2,16);x.fillRect(innerWidth/2-8,innerHeight/2-1,16,2);
+}
+function tick(t){
+ let dt=.016,sp=2.2*dt,rot=1.8*dt;
+ if(keys.l)p.a-=rot;if(keys.r)p.a+=rot;
+ let dir=(keys.f?1:0)-(keys.b?1:0);p.x+=Math.sin(p.a)*sp*dir;p.z+=Math.cos(p.a)*sp*dir;
+ p.x=Math.max(-7,Math.min(S.exp?8:5,p.x));p.z=Math.max(-10,Math.min(9,p.z));
+ spawn-=dt;if(spawn<0){spawn=3+Math.random()*4;if(customers.length<5)customers.push({x:(Math.random()*6-3),z:6,col:['#875','#587','#758','#786'][Math.floor(Math.random()*4)],life:0})}
+ customers.forEach(o=>{o.life+=dt;o.z-=dt*.65;if(o.z<-3&&S.shelf>0&&Math.random()<dt*.5){S.shelf--;S.money+=S.price;S.sales++;save();hud();o.z=-4}if(o.z<-7)o.z=8});
+ draw();requestAnimationFrame(tick)
+}requestAnimationFrame(tick);
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>
+</body></html>
