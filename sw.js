@@ -1,4 +1,4 @@
-const CACHE = 'mercatura-v012';
+const CACHE = 'mercatura-v013';
 const ASSETS = [
   './',
   './index.html',
