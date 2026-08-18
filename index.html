@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#161616">
 <link rel="manifest" href="manifest.webmanifest">
-<title>MERCATURA v0.2</title>
+<title>MERCATURA v0.3</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#111;color:#fff;font-family:system-ui,-apple-system,sans-serif}
-#game{width:100%;height:100%;display:block;touch-action:none;background:#111}
+#game{width:100%;height:100%;display:block;touch-action:none;background:#666}
 #hud{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;pointer-events:none;z-index:100}
 .pill{background:#111d;padding:8px 12px;border:1px solid #ffffff33;border-radius:12px;backdrop-filter:blur(8px);pointer-events:auto}
 #msg{position:fixed;top:58px;left:50%;transform:translateX(-50%);background:#111d;padding:8px 12px;border-radius:10px;opacity:0;transition:.2s;z-index:100}
@@ -26,7 +26,7 @@ small{opacity:.72}
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div class="pill"><b>MERCATURA</b><br><small>Tag <span id="day">1</span></small></div><div class="pill"><span id="money">250.00</span> €<br><small>Lager: <span id="stock">8</span> | Regal: <span id="shelf">6</span></small></div></div>
+<div id="hud"><div class="pill"><b>MERCATURA</b><br><small>v0.3 Visual Foundation</small></div></div>
 <div id="msg"></div>
 <div id="controls">
   <div id="joystick-left"></div>
@@ -37,82 +37,48 @@ small{opacity:.72}
 <div id="panel"></div>
 <script>
 // ============================================================================
-// MERCATURA v0.2 - Foundation Build
-// Single-file PWA with enclosed supermarket interior, collision, mobile controls
+// MERCATURA v0.3 - Visual Foundation Build
+// Focus: Enclosed supermarket interior with proper perspective and recognizable geometry
 // ============================================================================
 
 // ============================================================================
-// WORLD DEFINITION - Tile-based layout
+// WORLD DEFINITION
 // ============================================================================
-// Legend: '#' = wall, '.' = floor, 'S' = shelf, 'R' = register, 'F' = fridge, 'E' = entrance, 'K' = stockroom
 const WORLD = {
-  width: 12,
-  height: 14,
+  width: 14,
+  height: 16,
   tileSize: 1,
   map: [
-    '############',
-    '#..RRRR....#',
-    '#..........#',
-    '#.S......S.#',
-    '#.S......S.#',
-    '#..........#',
-    '#.FFFF.....#',
-    '#..........#',
-    '#..........#',
-    '#K.K...E...#',
-    '#K.K.......#',
-    '#..........#',
-    '#..........#',
-    '############'
+    '##############',
+    '#............#',
+    '#............#',
+    '#.S......S..#',
+    '#.S......S..#',
+    '#............#',
+    '#.F.F.F.F...#',
+    '#............#',
+    '#............#',
+    '#............#',
+    '#..CCC.D....#',
+    '#..CCC......#',
+    '#............#',
+    '#....K.K....#',
+    '#....K.K....#',
+    '##############'
   ]
 };
 
-// Fixture metadata: position, dimensions, label
-const FIXTURES = [
-  {x: 1.5, z: 1, w: 3, h: 0.8, col: '#3d4a50', label: 'KASSE', type: 'register'},
-  {x: 1.5, z: 3.5, w: 0.5, h: 1.8, col: '#a87a42', label: 'REGAL', type: 'shelf'},
-  {x: 1.5, z: 4.5, w: 0.5, h: 1.8, col: '#a87a42', label: 'REGAL', type: 'shelf'},
-  {x: 9, z: 3.5, w: 0.5, h: 1.8, col: '#a87a42', label: 'REGAL', type: 'shelf'},
-  {x: 9, z: 4.5, w: 0.5, h: 1.8, col: '#a87a42', label: 'REGAL', type: 'shelf'},
-  {x: 1.5, z: 6.5, w: 4, h: 0.8, col: '#4a7a99', label: 'KÜHLUNG', type: 'fridge'},
-  {x: 5.5, z: 9, w: 2, h: 0.8, col: '#6b6b6b', label: 'EINGANG', type: 'entrance'},
-  {x: 1, z: 9.5, w: 0.8, h: 1.2, col: '#5a5a5a', label: 'LAGER', type: 'stockroom'}
-];
-
-// Collision bounds
-function getTileType(x, z) {
-  const tx = Math.floor(x);
-  const tz = Math.floor(z);
-  if (tz < 0 || tz >= WORLD.height || tx < 0 || tx >= WORLD.width) return '#';
-  return WORLD.map[tz][tx];
-}
-
-function canWalkAt(x, z, radius = 0.3) {
-  const t = getTileType(x, z);
-  if (t === '#') return false;
-  
-  for (let f of FIXTURES) {
-    const dx = Math.abs(x - f.x);
-    const dy = Math.abs(z - f.z);
-    if (dx < f.w / 2 + radius && dy < f.h / 2 + radius) return false;
-  }
-  return true;
-}
-
-// ============================================================================
-// GAME STATE
-// ============================================================================
+// Game state
 let S = JSON.parse(localStorage.getItem('mercaturaSave') || 'null') || {
   money: 250,
   stock: 8,
   shelf: 6,
   price: 3.2,
   day: 1,
-  sales: 0,
-  exp: 0
+  sales: 0
 };
 
-let p = {x: 5.5, y: 1.65, z: 11, a: Math.PI};
+let p = {x: 7, y: 1.65, z: 14, a: Math.PI};
 let customers = [];
 let spawn = 0;
 let interactionCooldown = 0;
@@ -130,150 +96,383 @@ function msg(t) {
   setTimeout(() => m.style.opacity = 0, 1600);
 }
 
-function hud() {
-  document.getElementById('money').textContent = S.money.toFixed(2);
-  document.getElementById('stock').textContent = S.stock;
-  document.getElementById('shelf').textContent = S.shelf;
-  document.getElementById('day').textContent = S.day;
+// ============================================================================
+// COLLISION SYSTEM
+// ============================================================================
+function getTileType(x, z) {
+  const tx = Math.floor(x);
+  const tz = Math.floor(z);
+  if (tz < 0 || tz >= WORLD.height || tx < 0 || tx >= WORLD.width) return '#';
+  return WORLD.map[tz][tx];
 }
-hud();
+
+function canWalkAt(x, z, radius = 0.3) {
+  const t = getTileType(x, z);
+  if (t === '#') return false;
+  
+  // Collision with fixture areas (shelves, counter, fridge, stockroom)
+  const fixtures = [
+    {x: 1.5, z: 3.5, w: 0.8, h: 1.8}, // Left shelf 1
+    {x: 1.5, z: 4.5, w: 0.8, h: 1.8}, // Left shelf 2
+    {x: 11, z: 3.5, w: 0.8, h: 1.8},  // Right shelf 1
+    {x: 11, z: 4.5, w: 0.8, h: 1.8},  // Right shelf 2
+    {x: 2, z: 6.5, w: 2.5, h: 0.8},   // Fridge counter
+    {x: 2.5, z: 10.5, w: 1.5, h: 1.2}, // Checkout counter
+    {x: 7, z: 10.5, w: 1, h: 0.8},    // Entrance door
+    {x: 7, z: 14.5, w: 1.5, h: 1.5}   // Stockroom door area
+  ];
+  
+  for (let f of fixtures) {
+    const dx = Math.abs(x - f.x);
+    const dz = Math.abs(z - f.z);
+    if (dx < f.w / 2 + radius && dz < f.h / 2 + radius) return false;
+  }
+  return true;
+}
 
 // ============================================================================
-// CANVAS & RENDERING
+// CANVAS SETUP
 // ============================================================================
 const c = document.getElementById('game'), x = c.getContext('2d');
-let W, H;
+let W, H, focalLength;
 
 function resize() {
   W = c.width = innerWidth * devicePixelRatio;
   H = c.height = innerHeight * devicePixelRatio;
   x.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  // Focal length for proper perspective (60° FOV)
+  focalLength = innerWidth / (2 * Math.tan(Math.PI / 6));
 }
 addEventListener('resize', resize);
 resize();
 
-function project(wx, wz) {
+// ============================================================================
+// PROJECTION & RENDERING
+// ============================================================================
+
+// Project world coords to screen coords with proper perspective
+function project(wx, wz, wy) {
   const dx = wx - p.x;
   const dz = wz - p.z;
+  const dy = wy - p.y;
+  
+  // Rotate by player angle
   const ca = Math.cos(-p.a);
   const sa = Math.sin(-p.a);
   const rx = dx * ca - dz * sa;
   const rz = dx * sa + dz * ca;
-  if (rz < 0.2) return null;
-  const f = Math.min(innerWidth, innerHeight) * 0.9;
-  return [
-    innerWidth / 2 + (rx / rz) * f,
-    innerHeight / 2 + (0.5 / rz) * f,
-    rz
-  ];
+  
+  // Behind player
+  if (rz < 0.1) return null;
+  
+  // Project to screen
+  const sx = innerWidth / 2 + (rx / rz) * focalLength;
+  const sy = innerHeight * 0.35 + (dy / rz) * focalLength;
+  
+  return {x: sx, y: sy, z: rz};
 }
 
-function rect3(wx, wz, ww, hh, col, label) {
-  const q = project(wx, wz);
-  if (!q) return;
-  const [sx, sy, z] = q;
-  const sc = Math.min(260, 180 / z);
+// Draw a wall segment (vertical rectangle in 3D)
+function drawWallSegment(wx1, wz1, wx2, wz2, wyTop, wyBot, col) {
+  const p1 = project(wx1, wz1, wyBot);
+  const p2 = project(wx2, wz2, wyBot);
+  const p3 = project(wx2, wz2, wyTop);
+  const p4 = project(wx1, wz1, wyTop);
+  
+  if (!p1 || !p2 || !p3 || !p4) return;
+  
   x.fillStyle = col;
-  x.fillRect(sx - ww * sc / 2, sy - hh * sc, ww * sc, hh * sc);
-  x.strokeStyle = '#0008';
+  x.beginPath();
+  x.moveTo(p1.x, p1.y);
+  x.lineTo(p2.x, p2.y);
+  x.lineTo(p3.x, p3.y);
+  x.lineTo(p4.x, p4.y);
+  x.fill();
+  
+  x.strokeStyle = '#00000044';
   x.lineWidth = 1;
-  x.strokeRect(sx - ww * sc / 2, sy - hh * sc, ww * sc, hh * sc);
-  if (label) {
-    x.fillStyle = '#fff';
-    x.font = Math.max(8, Math.min(16, 12 / z)) + 'px system-ui';
-    x.textAlign = 'center';
-    x.textBaseline = 'middle';
-    x.fillText(label, sx, sy - hh * sc / 2);
-  }
+  x.stroke();
 }
 
-function drawWalls() {
-  x.strokeStyle = '#ffffff22';
-  x.lineWidth = 2;
-  
-  const scanRes = 30;
-  for (let i = 0; i < scanRes; i++) {
-    const angle = p.a - Math.PI / 3 + (i / scanRes) * (2 * Math.PI / 3);
-    const rayDx = Math.cos(angle);
-    const rayDz = Math.sin(angle);
-    
-    for (let dist = 0.1; dist < 20; dist += 0.1) {
-      const rx = p.x + rayDx * dist;
-      const rz = p.z + rayDz * dist;
-      if (getTileType(rx, rz) === '#') {
-        const q = project(rx, rz);
-        if (q) {
-          const [sx, sy, z] = q;
-          const wallHeight = (innerHeight / 2) / z;
-          x.beginPath();
-          x.moveTo(sx, sy - wallHeight);
-          x.lineTo(sx, sy + wallHeight);
-          x.stroke();
-        }
-        break;
-      }
-    }
-  }
-}
-
-function drawFloor() {
-  x.fillStyle = '#663322';
-  x.fillRect(0, innerHeight / 2, innerWidth, innerHeight / 2);
-  
-  x.strokeStyle = '#ffffff18';
-  x.lineWidth = 1;
-  const gridSpacing = 2;
-  
-  for (let gx = Math.floor(p.x) - 10; gx <= Math.floor(p.x) + 10; gx += gridSpacing) {
-    const a = project(gx, p.z - 10);
-    const b = project(gx, p.z + 10);
-    if (a && b) {
-      x.beginPath();
-      x.moveTo(a[0], a[1]);
-      x.lineTo(b[0], b[1]);
-      x.stroke();
-    }
-  }
-  
-  for (let gz = Math.floor(p.z) - 10; gz <= Math.floor(p.z) + 10; gz += gridSpacing) {
-    const a = project(p.x - 10, gz);
-    const b = project(p.x + 10, gz);
-    if (a && b) {
-      x.beginPath();
-      x.moveTo(a[0], a[1]);
-      x.lineTo(b[0], b[1]);
-      x.stroke();
-    }
-  }
-}
-
+// Draw ceiling (simple quadrilateral)
 function drawCeiling() {
-  const g = x.createLinearGradient(0, 0, 0, innerHeight / 2);
-  g.addColorStop(0, '#8aa0ad');
-  g.addColorStop(1, '#d7d2c7');
-  x.fillStyle = g;
-  x.fillRect(0, 0, innerWidth, innerHeight / 2);
+  const corners = [
+    project(0, 0, 2.4),
+    project(14, 0, 2.4),
+    project(14, 16, 2.4),
+    project(0, 16, 2.4)
+  ];
+  
+  if (corners.some(c => !c)) return;
+  
+  x.fillStyle = '#999999';
+  x.beginPath();
+  x.moveTo(corners[0].x, corners[0].y);
+  x.lineTo(corners[1].x, corners[1].y);
+  x.lineTo(corners[2].x, corners[2].y);
+  x.lineTo(corners[3].x, corners[3].y);
+  x.fill();
+  
+  x.strokeStyle = '#00000055';
+  x.lineWidth = 1;
+  x.stroke();
 }
 
-function draw() {
-  x.clearRect(0, 0, innerWidth, innerHeight);
+// Draw floor
+function drawFloor() {
+  const corners = [
+    project(0, 0, 0),
+    project(14, 0, 0),
+    project(14, 16, 0),
+    project(0, 16, 0)
+  ];
   
-  drawCeiling();
+  if (corners.some(c => !c)) return;
+  
+  x.fillStyle = '#774422';
+  x.beginPath();
+  x.moveTo(corners[0].x, corners[0].y);
+  x.lineTo(corners[1].x, corners[1].y);
+  x.lineTo(corners[2].x, corners[2].y);
+  x.lineTo(corners[3].x, corners[3].y);
+  x.fill();
+  
+  // Floor grid
+  x.strokeStyle = '#00000022';
+  x.lineWidth = 0.5;
+  for (let gz = 0; gz <= 16; gz += 1) {
+    const p1 = project(0, gz, 0);
+    const p2 = project(14, gz, 0);
+    if (p1 && p2) {
+      x.beginPath();
+      x.moveTo(p1.x, p1.y);
+      x.lineTo(p2.x, p2.y);
+      x.stroke();
+    }
+  }
+  for (let gx = 0; gx <= 14; gx += 1) {
+    const p1 = project(gx, 0, 0);
+    const p2 = project(gx, 16, 0);
+    if (p1 && p2) {
+      x.beginPath();
+      x.moveTo(p1.x, p1.y);
+      x.lineTo(p2.x, p2.y);
+      x.stroke();
+    }
+  }
+}
+
+// Draw walls (room enclosure)
+function drawWalls() {
+  // Left wall
+  drawWallSegment(0, 0, 0, 16, 2.4, 0, '#aaaaaa');
+  
+  // Right wall
+  drawWallSegment(14, 0, 14, 16, 2.4, 0, '#999999');
+  
+  // Back wall
+  drawWallSegment(0, 16, 14, 16, 2.4, 0, '#aaaaaa');
+  
+  // Front wall (left section)
+  drawWallSegment(0, 0, 6, 0, 2.4, 0, '#bbbbbb');
+  
+  // Front wall (right section, past entrance)
+  drawWallSegment(8, 0, 14, 0, 2.4, 0, '#bbbbbb');
+  
+  // Entrance (door opening at z=0, x=6-8)
+  // Draw door frame
+  drawWallSegment(6, 0, 8, 0, 2.2, 1.8, '#555555');
+}
+
+// Draw a shelf unit (vertical walls + horizontal shelves)
+function drawShelf(centerX, centerZ, width, depth, height, color) {
+  const x1 = centerX - width / 2;
+  const x2 = centerX + width / 2;
+  const z1 = centerZ - depth / 2;
+  const z2 = centerZ + depth / 2;
+  
+  // Back panel
+  drawWallSegment(x1, z2, x2, z2, height, 0, color);
+  
+  // Left side
+  drawWallSegment(x1, z1, x1, z2, height, 0, color);
+  
+  // Right side
+  drawWallSegment(x2, z1, x2, z2, height, 0, color);
+  
+  // Horizontal shelf levels
+  const shelfLevels = [0.4, 0.95, 1.5];
+  x.strokeStyle = '#00000033';
+  x.lineWidth = 1;
+  
+  for (let sh of shelfLevels) {
+    const p1 = project(x1, z1, sh);
+    const p2 = project(x2, z1, sh);
+    const p3 = project(x2, z2, sh);
+    const p4 = project(x1, z2, sh);
+    
+    if (p1 && p2 && p3 && p4) {
+      x.beginPath();
+      x.moveTo(p1.x, p1.y);
+      x.lineTo(p2.x, p2.y);
+      x.lineTo(p3.x, p3.y);
+      x.lineTo(p4.x, p4.y);
+      x.stroke();
+    }
+  }
+}
+
+// Draw checkout counter (rectangular box with conveyor top)
+function drawCheckout() {
+  const x1 = 1.5;
+  const x2 = 3.5;
+  const z1 = 10;
+  const z2 = 11;
+  const hBody = 0.9;
+  const hTop = 1.1;
+  
+  // Front face (taller)
+  drawWallSegment(x1, z1, x2, z1, hTop, 0, '#cc8844');
+  
+  // Back face
+  drawWallSegment(x1, z2, x2, z2, hBody, 0, '#aa6633');
+  
+  // Left side
+  drawWallSegment(x1, z1, x1, z2, hTop, 0, '#bb7733');
+  
+  // Right side
+  drawWallSegment(x2, z1, x2, z2, hTop, 0, '#bb7733');
+  
+  // Top conveyor surface
+  const p1 = project(x1, z1, hTop);
+  const p2 = project(x2, z1, hTop);
+  const p3 = project(x2, z2, hBody);
+  const p4 = project(x1, z2, hBody);
+  
+  if (p1 && p2 && p3 && p4) {
+    x.fillStyle = '#ddaa55';
+    x.beginPath();
+    x.moveTo(p1.x, p1.y);
+    x.lineTo(p2.x, p2.y);
+    x.lineTo(p3.x, p3.y);
+    x.lineTo(p4.x, p4.y);
+    x.fill();
+    
+    x.strokeStyle = '#00000044';
+    x.lineWidth = 1;
+    x.stroke();
+  }
+}
+
+// Draw refrigerated display
+function drawFridge() {
+  const x1 = 0.5;
+  const x2 = 3.5;
+  const z1 = 6.2;
+  const z2 = 6.8;
+  const height = 0.95;
+  
+  // Front glass-like face
+  drawWallSegment(x1, z1, x2, z1, height, 0, '#88aacc');
+  
+  // Back
+  drawWallSegment(x1, z2, x2, z2, height, 0, '#6688aa');
+  
+  // Left side
+  drawWallSegment(x1, z1, x1, z2, height, 0, '#7799bb');
+  
+  // Right side
+  drawWallSegment(x2, z1, x2, z2, height, 0, '#7799bb');
+  
+  // Front compartment divisions (glass sections)
+  x.strokeStyle = '#00000044';
+  x.lineWidth = 1.5;
+  
+  const dividers = [x1 + (x2 - x1) / 3, x1 + 2 * (x2 - x1) / 3];
+  for (let dvx of dividers) {
+    const p1 = project(dvx, z1, height);
+    const p2 = project(dvx, z1, 0);
+    if (p1 && p2) {
+      x.beginPath();
+      x.moveTo(p1.x, p1.y);
+      x.lineTo(p2.x, p2.y);
+      x.stroke();
+    }
+  }
+}
+
+// Draw stockroom door/opening
+function drawStockroom() {
+  const x1 = 6.25;
+  const x2 = 7.75;
+  const z = 15;
+  const frameHeight = 2.1;
+  const openHeight = 1.9;
+  
+  // Door frame sides
+  drawWallSegment(x1, z, x1, z, frameHeight, 0, '#666666');
+  drawWallSegment(x2, z, x2, z, frameHeight, 0, '#666666');
+  
+  // Door lintel (top)
+  drawWallSegment(x1, z, x2, z, frameHeight, openHeight, '#666666');
+  
+  // Recessed stockroom (dark interior visible through opening)
+  const p1 = project(x1, z, 0);
+  const p2 = project(x2, z, 0);
+  const p3 = project(x2, z, openHeight);
+  const p4 = project(x1, z, openHeight);
+  
+  if (p1 && p2 && p3 && p4) {
+    x.fillStyle = '#333333';
+    x.beginPath();
+    x.moveTo(p1.x, p1.y);
+    x.lineTo(p2.x, p2.y);
+    x.lineTo(p3.x, p3.y);
+    x.lineTo(p4.x, p4.y);
+    x.fill();
+  }
+}
+
+// Main draw function
+function draw() {
+  x.fillStyle = '#666666';
+  x.fillRect(0, 0, innerWidth, innerHeight);
+  
   drawFloor();
+  drawCeiling();
   drawWalls();
   
-  FIXTURES.forEach(f => {
-    rect3(f.x, f.z, f.w, f.h, f.col, f.label);
-  });
+  // Shelves
+  drawShelf(1.5, 3.5, 0.8, 0.6, 1.8, '#a87a52');
+  drawShelf(1.5, 4.5, 0.8, 0.6, 1.8, '#a87a52');
+  drawShelf(11.5, 3.5, 0.8, 0.6, 1.8, '#a87a52');
+  drawShelf(11.5, 4.5, 0.8, 0.6, 1.8, '#a87a52');
   
+  // Fridge
+  drawFridge();
+  
+  // Checkout
+  drawCheckout();
+  
+  // Stockroom
+  drawStockroom();
+  
+  // Draw customers (simple colored shapes for now)
   customers.forEach(o => {
-    rect3(o.x, o.z, 0.45, 1.65, o.col, '');
+    const q = project(o.x, o.z, 0);
+    const qt = project(o.x, o.z, 1.65);
+    if (q && qt) {
+      x.fillStyle = o.col;
+      x.fillRect(q.x - 15, qt.y, 30, q.y - qt.y);
+    }
   });
   
+  // Crosshair
   x.fillStyle = '#ffffff99';
   x.fillRect(innerWidth / 2 - 1, innerHeight / 2 - 8, 2, 16);
   x.fillRect(innerWidth / 2 - 8, innerHeight / 2 - 1, 16, 2);
   
+  // Joystick visual feedback
   if (joystickActive) {
     const jx = joystickX * 40;
     const jy = joystickY * 40;
@@ -294,48 +493,26 @@ function near(ax, az, d = 1.8) {
 function interact() {
   if (interactionCooldown > 0) return;
   interactionCooldown = 0.3;
-  
-  if (near(1.5, 1) && S.stock > 0) {
-    let n = Math.min(6 - S.shelf, S.stock);
-    if (n > 0) {
-      S.stock -= n;
-      S.shelf += n;
-      msg(n + ' Produkte eingeräumt');
-      save();
-      hud();
-    } else {
-      msg('Regal ist voll');
-    }
-  } else if (near(1.5, 1)) {
-    if (S.sales > 0) {
-      msg('Kasse: ' + S.sales + ' Verkäufe heute');
-    } else {
-      msg('Noch keine Verkäufe');
-    }
-  } else if (near(5.5, 9)) {
-    S.day++;
-    S.sales = 0;
-    msg('Neuer Verkaufstag');
-    save();
-    hud();
-  } else {
-    msg('Hier gibt es gerade nichts zu tun');
-  }
+  msg('(v0.3: Gameplay systems dormant)');
 }
 
 document.getElementById('interact').addEventListener('click', interact);
 
 // ============================================================================
-// MANAGEMENT PANEL
+// MANAGEMENT PANEL (DORMANT)
 // ============================================================================
 function renderPanel() {
   const panel = document.getElementById('panel');
-  panel.innerHTML = `<b>Marktverwaltung</b>
-<div class="row"><span>Ware bestellen<br><small>10 Stück · 15,00 €</small></span><button class="action" onclick="order()">Bestellen</button></div>
-<div class="row"><span>Verkaufspreis<br><small>Aktuell ${S.price.toFixed(2)} €</small></span><span><button class="action" onclick="price(-.2)">−</button> <button class="action" onclick="price(.2)">+</button></span></div>
-<div class="row"><span>Lagerbestand<br><small>${S.stock} Einheiten</small></span></div>
-<div class="row"><span>Regalbestand<br><small>${S.shelf} Einheiten</small></span></div>
-<small>v0.2 Foundation: Mobiler Steuerung, Raumbasiert, Kollision. Bewegung mit Joystick, Umsehen mit Wischen.</small>`;
+  panel.innerHTML = `<b>MERCATURA v0.3</b>
+<small>Visual Foundation Build<br>
+This release focuses on interior geometry and perspective.<br><br>
+✓ Enclosed room with four walls and ceiling<br>
+✓ Proper first-person camera (60° FOV)<br>
+✓ Recognizable fixtures: shelves, checkout, refrigerator, stockroom<br>
+✓ Collision system active<br>
+✓ Mobile controls: left joystick, right swipe-to-look<br><br>
+Gameplay systems (inventory, economy, customers) are dormant in this foundation build.
+</small>`;
 }
 
 document.getElementById('shop').addEventListener('click', () => {
@@ -344,27 +521,8 @@ document.getElementById('shop').addEventListener('click', () => {
   if (panel.style.display === 'block') renderPanel();
 });
 
-window.order = () => {
-  if (S.money >= 15) {
-    S.money -= 15;
-    S.stock += 10;
-    save();
-    hud();
-    renderPanel();
-    msg('Lieferung angekommen');
-  } else {
-    msg('Zu wenig Geld');
-  }
-};
-
-window.price = d => {
-  S.price = Math.max(0.5, Math.min(8, S.price + d));
-  save();
-  renderPanel();
-};
-
 // ============================================================================
-// MOBILE CONTROLS - Virtual Joystick & Look
+// MOBILE CONTROLS
 // ============================================================================
 const joystickArea = document.getElementById('joystick-left');
 const lookZone = document.getElementById('look-zone');
@@ -422,17 +580,17 @@ lookZone.addEventListener('pointerup', e => {
 });
 
 // ============================================================================
-// CUSTOMER AI
+// CUSTOMER AI (DORMANT)
 // ============================================================================
 function updateCustomers(dt) {
   spawn -= dt;
   if (spawn < 0) {
     spawn = 3 + Math.random() * 4;
-    if (customers.length < 5) {
+    if (customers.length < 2) {
       customers.push({
-        x: 5.5 + (Math.random() * 0.5 - 0.25),
-        z: 9,
-        col: ['#875', '#587', '#758', '#786'][Math.floor(Math.random() * 4)],
+        x: 7 + (Math.random() * 0.5 - 0.25),
+        z: 1,
+        col: ['#c75', '#57a', '#7a8', '#8a7'][Math.floor(Math.random() * 4)],
         life: 0
       });
     }
@@ -440,18 +598,8 @@ function updateCustomers(dt) {
   
   customers.forEach((o, idx) => {
     o.life += dt;
-    o.z -= dt * 0.65;
-    
-    if (o.z < 3 && S.shelf > 0 && Math.random() < dt * 0.5) {
-      S.shelf--;
-      S.money += S.price;
-      S.sales++;
-      save();
-      hud();
-      o.z = -5;
-    }
-    
-    if (o.z < -7) {
+    o.z += dt * 0.5;
+    if (o.z > 15) {
       customers.splice(idx, 1);
     }
   });
@@ -466,6 +614,7 @@ function tick(t) {
   
   interactionCooldown -= dt;
   
+  // Apply joystick input
   if (joystickActive) {
     const moveDir = Math.hypot(joystickX, joystickY);
     if (moveDir > 0.1) {
@@ -480,7 +629,6 @@ function tick(t) {
   }
   
   updateCustomers(dt);
-  
   draw();
   
   requestAnimationFrame(tick);
@@ -488,7 +636,7 @@ function tick(t) {
 requestAnimationFrame(tick);
 
 // ============================================================================
-// PWA INITIALIZATION
+// PWA
 // ============================================================================
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js');
