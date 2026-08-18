@@ -1,0 +1,9 @@
+{
+  "name": "MERCATURA",
+  "short_name": "MERCATURA",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#161616",
+  "icons": []
+}
