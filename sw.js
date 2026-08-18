@@ -1,4 +1,4 @@
-const CACHE = 'mercatura-v013';
+const CACHE = 'mercatura-v014';
 const ASSETS = [
   './',
   './index.html',
@@ -6,7 +6,7 @@ const ASSETS = [
   './sw.js'
 ];
 
-// Install: Cache assets and skip waiting for activation
+// Install: Cache essential assets
 self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(
@@ -28,11 +28,24 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch: Cache-first strategy for offline support
+// Fetch: Cache-first strategy with network fallback
+// Three.js from CDN will be cached automatically on first fetch
 self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request).then(response => {
-      return response || fetch(event.request);
+      if (response) {
+        return response;
+      }
+      return fetch(event.request).then(response => {
+        // Cache successful responses from network
+        if (response && response.status === 200) {
+          const responseToCache = response.clone();
+          caches.open(CACHE).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return response;
+      });
     }).catch(() => {
       return caches.match('./index.html');
     })
